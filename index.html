@@ -1013,10 +1013,12 @@ function setupTouch() {
         if (w && w !== startW) { isDrag = true; curW = w; hlRange(startW, w); }
     }, { passive: true });
 
+    let lastTouchEnd = 0;
     article.addEventListener('touchend', e => {
         clearTimeout(holdTimer);
         if (phraseMode) return;
         if (!startW) return;
+        lastTouchEnd = Date.now();
         if (isHold && isDrag && curW && curW !== startW) {
             handleDragEnd(startW, curW);
         } else if (isHold && !isDrag) {
@@ -1028,9 +1030,10 @@ function setupTouch() {
         startW = null; curW = null; isDrag = false; moved = false; isHold = false;
     });
 
-    // Mouse (desktop)
+    // Mouse (desktop) — skip synthetic mouse events fired after touch
     let md = false;
     article.addEventListener('mousedown', e => {
+        if (Date.now() - lastTouchEnd < 500) return;
         const w = e.target.closest('.w');
         if (!w) return;
         if (phraseMode) return;
@@ -1088,7 +1091,7 @@ function addWord(word, sentence, wids) {
 function removeWordByWids(wids) {
     // Find saved word that contains any of these wids
     const idx = savedWords.findIndex(w => w.wids && w.wids.some(id => wids.includes(id)));
-    if (idx !== -1) { savedWords.splice(idx, 1); persist(); updateCounts(); renderWordList(); applyHighlights(); }
+    if (idx !== -1) { savedWords.splice(idx, 1); persistAll(); updateCounts(); renderWordList(); applyHighlights(); }
 }
 
 function applyHighlights() {
