@@ -608,7 +608,7 @@
 <div class="topbar">
     <h1>WordCatch</h1>
     <span class="count" id="wordCount">0 words</span>
-    <button class="icon-btn" id="wordsBtn">&#9776;</button>
+    <button class="btn" id="signInBtn">Sign In</button>
 </div>
 
 <div class="url-bar" id="urlBar">
@@ -1181,7 +1181,6 @@ function escapeHtml(s) { const d = document.createElement('div'); d.textContent 
 function openSheet() { renderWordList(); sheetOverlay.classList.add('open'); sheet.classList.add('open'); }
 function closeSheet() { sheetOverlay.classList.remove('open'); sheet.classList.remove('open'); }
 
-$('wordsBtn').addEventListener('click', openSheet);
 $('bbWords').addEventListener('click', openSheet);
 $('closeSheet').addEventListener('click', closeSheet);
 sheetOverlay.addEventListener('click', closeSheet);
@@ -1230,6 +1229,31 @@ $('sendToLangWizBtn').addEventListener('click', async () => {
     }
 });
 
+
+// Sign-in button
+const signInBtn = $('signInBtn');
+
+firebase.auth().onAuthStateChanged(user => {
+    if (user) {
+        signInBtn.textContent = user.displayName ? user.displayName.split(' ')[0] : 'Signed In';
+        signInBtn.title = `Signed in as ${user.email}\nClick to sign out`;
+        signInBtn._signedIn = true;
+    } else {
+        signInBtn.textContent = 'Sign In';
+        signInBtn.title = '';
+        signInBtn._signedIn = false;
+    }
+});
+
+signInBtn.addEventListener('click', async () => {
+    if (signInBtn._signedIn) {
+        await firebase.auth().signOut();
+        showToast('Signed out');
+    } else {
+        try { await firebase.auth().signInWithPopup(googleProvider); }
+        catch { showToast('Sign-in cancelled'); }
+    }
+});
 
 function showToast(msg) {
     toast.textContent = msg; toast.classList.add('show');
