@@ -697,7 +697,9 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
+emailjs.init('n8uukZgAODGiDq4-Q');
 const EMAIL = 'nguyenthiet.lam@gmail.com';
 const CORS_PROXIES = [
     url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
@@ -1196,10 +1198,9 @@ $('emailCsvBtn').addEventListener('click', async () => {
     const csv = '\uFEFFWord/Phrase,Sentence,Date\n' + rows.join('\n');
     showToast('Sending…');
     try {
-        await fetch('https://script.google.com/macros/s/AKfycbyhKCfXdIonhLmRyiw3mT9zcBFYCbbR8qi5DTkzA-aewQTK5NNrBz17fqnU1od7mPsS/exec', {
-            method: 'POST',
-            mode: 'no-cors',
-            body: JSON.stringify({ subject: 'WordCatch vocab', csv }),
+        await emailjs.send('service_h8194kr', 'template_5gul5ta', {
+            subject: 'WordCatch vocab',
+            body: csv,
         });
         showToast('Sent!');
     } catch (err) {
