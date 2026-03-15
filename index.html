@@ -609,6 +609,8 @@
     <h1>WordCatch</h1>
     <span class="count" id="wordCount">0 words</span>
     <button class="btn" id="signInBtn">Sign In</button>
+    <img id="userAvatar" src="" alt="" style="display:none;width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+    <button class="btn" id="signOutBtn" style="display:none;">Sign Out</button>
 </div>
 
 <div class="url-bar" id="urlBar">
@@ -1230,29 +1232,32 @@ $('sendToLangWizBtn').addEventListener('click', async () => {
 });
 
 
-// Sign-in button
+// Auth UI
 const signInBtn = $('signInBtn');
+const signOutBtn = $('signOutBtn');
+const userAvatar = $('userAvatar');
 
 firebase.auth().onAuthStateChanged(user => {
     if (user) {
-        signInBtn.textContent = user.displayName ? user.displayName.split(' ')[0] : 'Signed In';
-        signInBtn.title = `Signed in as ${user.email}\nClick to sign out`;
-        signInBtn._signedIn = true;
+        signInBtn.style.display = 'none';
+        userAvatar.src = user.photoURL || '';
+        userAvatar.style.display = user.photoURL ? 'block' : 'none';
+        signOutBtn.style.display = 'block';
     } else {
-        signInBtn.textContent = 'Sign In';
-        signInBtn.title = '';
-        signInBtn._signedIn = false;
+        signInBtn.style.display = 'block';
+        userAvatar.style.display = 'none';
+        signOutBtn.style.display = 'none';
     }
 });
 
 signInBtn.addEventListener('click', async () => {
-    if (signInBtn._signedIn) {
-        await firebase.auth().signOut();
-        showToast('Signed out');
-    } else {
-        try { await firebase.auth().signInWithPopup(googleProvider); }
-        catch { showToast('Sign-in cancelled'); }
-    }
+    try { await firebase.auth().signInWithPopup(googleProvider); }
+    catch { showToast('Sign-in cancelled'); }
+});
+
+signOutBtn.addEventListener('click', async () => {
+    await firebase.auth().signOut();
+    showToast('Signed out');
 });
 
 function showToast(msg) {
