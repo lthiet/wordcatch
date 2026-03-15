@@ -576,7 +576,7 @@
             position: fixed;
             top: 4rem;
             left: 50%;
-            transform: translateX(-50%) translateY(-80px);
+            transform: translateX(-50%) translateY(-120px);
             background: var(--accent);
             color: #fff;
             padding: 0.5rem 1.25rem;
@@ -908,7 +908,8 @@ function updatePhraseBar() {
     selected.forEach(pw => {
         const idx = phraseWords.indexOf(pw);
         if (lastIdx >= 0 && idx > lastIdx + 1) parts.push('...');
-        parts.push(pw.word);
+        const w = stripPunctuation(pw.word);
+        if (w) parts.push(w);
         lastIdx = idx;
     });
     $('phraseWords').textContent = parts.join(' ');
@@ -923,7 +924,7 @@ $('phraseSave').addEventListener('click', () => {
     let phrase;
     if (selected.length === phraseWords.length) {
         // All words selected — save as contiguous phrase
-        phrase = selected.map(pw => pw.word).join(' ');
+        phrase = selected.map(pw => stripPunctuation(pw.word)).filter(Boolean).join(' ');
     } else {
         // Some deselected — use ... gaps
         const parts = [];
@@ -931,7 +932,8 @@ $('phraseSave').addEventListener('click', () => {
         selected.forEach(pw => {
             const idx = phraseWords.indexOf(pw);
             if (lastIdx >= 0 && idx > lastIdx + 1) parts.push('...');
-            parts.push(pw.word);
+            const w = stripPunctuation(pw.word);
+            if (w) parts.push(w);
             lastIdx = idx;
         });
         phrase = parts.join(' ');
@@ -1089,7 +1091,13 @@ function wordColor(index) {
     return `hsla(${Math.round(hue)}, 75%, 65%, 0.35)`;
 }
 
+function stripPunctuation(word) {
+    return word.replace(/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu, '');
+}
+
 function addWord(word, sentence, wids) {
+    word = stripPunctuation(word);
+    if (!word) return;
     savedWords.push({ word, sentence, date: new Date().toISOString().split('T')[0], wids });
     persistAll(); updateCounts(); renderWordList();
     applyHighlights();
