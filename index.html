@@ -867,12 +867,20 @@ function renderArticle(text) {
             if (/^\s+$/.test(token)) {
                 p.appendChild(document.createTextNode(' '));
             } else if (token) {
-                const span = document.createElement('span');
-                span.className = 'w';
-                span.textContent = token;
-                span.dataset.word = token;
-                span.dataset.wid = wIdx++;
-                p.appendChild(span);
+                // Split hyphenated words into separate word spans
+                const subWords = token.split(/(-)/);
+                subWords.forEach(part => {
+                    if (part === '-') {
+                        p.appendChild(document.createTextNode('-'));
+                    } else if (part) {
+                        const span = document.createElement('span');
+                        span.className = 'w';
+                        span.textContent = part;
+                        span.dataset.word = part;
+                        span.dataset.wid = wIdx++;
+                        p.appendChild(span);
+                    }
+                });
             }
         });
         article.appendChild(p);
