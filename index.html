@@ -1194,8 +1194,8 @@ $('downloadCsvBtn').addEventListener('click', () => {
 $('emailCsvBtn').addEventListener('click', async () => {
     const words = savedWords;
     if (words.length === 0) { showToast('No words saved for this article'); return; }
-    const rows = words.map(w => `"${w.word.replace(/"/g,'""')}","${w.sentence.replace(/"/g,'""')}","${w.date}"`);
-    const csv = '\uFEFFWord/Phrase,Sentence,Date\n' + rows.join('\n');
+    const rows = words.map(w => `"${w.word.replace(/"/g,'""')}","${w.sentence.replace(/"/g,'""')}"`);
+    const csv = '\uFEFFWord/Phrase,Sentence\n' + rows.join('\n');
     showToast('Sending…');
     try {
         await emailjs.send('service_h8194kr', 'template_5gul5ta', {
