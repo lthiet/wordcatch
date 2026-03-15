@@ -1190,9 +1190,11 @@ $('downloadCsvBtn').addEventListener('click', () => {
 });
 
 $('emailCsvBtn').addEventListener('click', () => {
-    const all = allWords();
-    if (all.length === 0) { showToast('No words saved yet'); return; }
-    const body = all.map(w => `${w.word}\n${w.sentence}`).join('\n\n');
+    const words = savedWords;
+    if (words.length === 0) { showToast('No words saved for this article'); return; }
+    const rows = words.map(w => `"${w.word.replace(/"/g,'""')}","${w.sentence.replace(/"/g,'""')}","${w.date}"`);
+    const csv = '\uFEFFWord/Phrase,Sentence,Date\n' + rows.join('\n');
+    const body = csv;
     window.location.href = `mailto:${EMAIL}?subject=${encodeURIComponent('WordCatch vocab')}&body=${encodeURIComponent(body)}`;
 });
 
