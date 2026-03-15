@@ -1021,6 +1021,14 @@ function setupTouch() {
         // Only count as "moved" if finger moved more than 10px
         if (Math.abs(dx) > 10 || Math.abs(dy) > 10) moved = true;
         if (!isHold) { if (moved) clearTimeout(holdTimer); return; }
+        // Cancel hold/selection if user is scrolling vertically
+        if (moved && Math.abs(dy) > Math.abs(dx)) {
+            clearTimeout(holdTimer);
+            clearSel();
+            isHold = false;
+            startW = null;
+            return;
+        }
         const w = wordAt(touch.clientX, touch.clientY);
         if (w && w !== startW) { isDrag = true; curW = w; hlRange(startW, w); }
     }, { passive: true });
