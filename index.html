@@ -1098,6 +1098,8 @@ function stripPunctuation(word) {
 function addWord(word, sentence, wids) {
     word = stripPunctuation(word);
     if (!word) return;
+    const alreadySaved = savedWords.some(w => w.wids && w.wids.some(id => wids.includes(id)));
+    if (alreadySaved) return;
     savedWords.push({ word, sentence, date: new Date().toISOString().split('T')[0], wids });
     persistAll(); updateCounts(); renderWordList();
     applyHighlights();
@@ -1145,54 +1147,20 @@ function updateCounts() {
 
 function renderWordList() {
     sheetBody.querySelectorAll('.word-item, .section-header').forEach(el => el.remove());
-    const all = allWords();
-    sheetEmpty.style.display = all.length === 0 ? 'block' : 'none';
+    sheetEmpty.style.display = savedWords.length === 0 ? 'block' : 'none';
 
-    // Show current article words first, then others
-    const sections = [];
-    function articleLabel(key, isCurrent) {
-        if (key.startsWith('text_')) return isCurrent ? 'This article' : 'Pasted text';
-        if (articleTitles[key]) return (isCurrent ? '● ' : '') + articleTitles[key];
-        const slug = key.replace(/.*\//, '').replace(/[-_]/g, ' ').replace(/\.\w+$/, '');
-        const name = slug.length > 3 ? slug.charAt(0).toUpperCase() + slug.slice(1) : key.replace(/https?:\/\/(www\.)?/, '').slice(0, 50);
-        return (isCurrent ? '● ' : '') + name;
-    }
-    if (currentArticleKey && savedWords.length > 0) {
-        sections.push({ key: currentArticleKey, words: savedWords, label: articleLabel(currentArticleKey, true) });
-    }
-    Object.entries(allArticleWords).forEach(([key, words]) => {
-        if (key !== currentArticleKey && words.length > 0) {
-            sections.push({ key, words, label: articleLabel(key, false) });
-        }
-    });
-
-    sections.forEach(section => {
-        if (sections.length > 1) {
-            const header = document.createElement('div');
-            header.className = 'section-header';
-            header.style.cssText = 'font-size:0.7rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.03em;padding:0.5rem 0.75rem 0.2rem;';
-            header.textContent = section.label;
-            sheetBody.appendChild(header);
-        }
-        section.words.forEach((entry, idx) => {
-            const div = document.createElement('div');
-            div.className = 'word-item';
-            const dotColor = wordColor(idx);
-            div.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${dotColor};flex-shrink:0;margin-top:5px;display:inline-block;"></span><div class="word-item-content"><div class="word-item-word">${escapeHtml(entry.word)}</div><div class="word-item-sentence">${escapeHtml(entry.sentence)}</div></div><button class="x-btn">&times;</button>`;
-            div.querySelector('.x-btn').addEventListener('click', () => {
-                const artWords = allArticleWords[section.key];
-                if (artWords) {
-                    artWords.splice(idx, 1);
-                    if (artWords.length === 0) delete allArticleWords[section.key];
-                    if (section.key === currentArticleKey) savedWords = allArticleWords[section.key] || [];
-                    localStorage.setItem('vocabSaverArticles', JSON.stringify(allArticleWords));
-                    updateCounts(); renderWordList(); applyHighlights();
-                }
-            });
-            sheetBody.appendChild(div);
+    savedWords.forEach((entry, idx) => {
+        const div = document.createElement('div');
+        div.className = 'word-item';
+        div.innerHTML = `<span style="width:10px;height:10px;border-radius:50%;background:${wordColor(idx)};flex-shrink:0;margin-top:5px;display:inline-block;"></span><div class="word-item-content"><div class="word-item-word">${escapeHtml(entry.word)}</div><div class="word-item-sentence">${escapeHtml(entry.sentence)}</div></div><button class="x-btn">&times;</button>`;
+        div.querySelector('.x-btn').addEventListener('click', () => {
+            savedWords.splice(idx, 1);
+            persistAll(); updateCounts(); renderWordList(); applyHighlights();
         });
+        sheetBody.appendChild(div);
     });
 }
+
 
 function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
@@ -1203,7 +1171,7 @@ $('wordsBtn').addEventListener('click', openSheet);
 $('bbWords').addEventListener('click', openSheet);
 $('closeSheet').addEventListener('click', closeSheet);
 sheetOverlay.addEventListener('click', closeSheet);
-$('bbNewArticle').addEventListener('click', () => { showView('landing'); $('pasteArea').value = ''; });
+$('bbNewArticle').addEventListener('click', () => { showView('landing'); $('pasteArea').value = ''; if (feedCache[currentFeed]) renderFeed(feedCache[currentFeed].items); });
 
 function generateCSV() {
     const all = allWords();
@@ -1222,11 +1190,10 @@ $('downloadCsvBtn').addEventListener('click', () => {
 });
 
 $('emailCsvBtn').addEventListener('click', () => {
-    const csv = generateCSV();
-    if (!csv) { showToast('No words saved yet'); return; }
-    const subject = `WordCatch - ${savedWords.length} words (${new Date().toISOString().split('T')[0]})`;
-    const body = `Here are your saved German words:\n\n${csv}\n\n---\nSent from WordCatch`;
-    window.location.href = `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const all = allWords();
+    if (all.length === 0) { showToast('No words saved yet'); return; }
+    const body = all.map(w => `${w.word}\n${w.sentence}`).join('\n\n');
+    window.location.href = `mailto:${EMAIL}?subject=${encodeURIComponent('WordCatch vocab')}&body=${encodeURIComponent(body)}`;
 });
 
 
@@ -1297,7 +1264,9 @@ function renderFeed(items) {
         const btn = document.createElement('button');
         btn.className = 'feed-item';
         const imgHtml = item.img ? `<img class="feed-item-img" src="${escapeHtml(item.img)}" alt="" loading="lazy" />` : '';
-        btn.innerHTML = `${imgHtml}<div class="feed-item-text"><div class="feed-item-title">${escapeHtml(item.title)}</div><div class="feed-item-meta">${timeAgo(item.pubDate)}</div></div>`;
+        const savedCount = allArticleWords[item.link]?.length || 0;
+        const savedBadge = savedCount > 0 ? ` · <span style="color:var(--link);font-weight:600;">${savedCount} word${savedCount !== 1 ? 's' : ''} saved</span>` : '';
+        btn.innerHTML = `${imgHtml}<div class="feed-item-text"><div class="feed-item-title">${escapeHtml(item.title)}</div><div class="feed-item-meta">${timeAgo(item.pubDate)}${savedBadge}</div></div>`;
         btn.addEventListener('click', () => {
             $('urlInput').value = item.link;
             currentArticleImg = item.img || '';
