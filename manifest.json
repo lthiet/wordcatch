@@ -1,7 +1,7 @@
 {
-  "name": "Vocab Saver",
-  "short_name": "Vocab",
-  "description": "Learn German vocabulary from SRF news articles",
+  "name": "WordCatch",
+  "short_name": "WordCatch",
+  "description": "Tap words you don't know while reading. Build your vocab list.",
   "start_url": "/vocab-saver/",
   "scope": "/vocab-saver/",
   "display": "standalone",

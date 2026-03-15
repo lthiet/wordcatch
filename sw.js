@@ -1,4 +1,4 @@
-const CACHE = 'vocab-v1';
+const CACHE = 'wordcatch-v2';
 const PRECACHE = ['/vocab-saver/', '/vocab-saver/index.html'];
 
 self.addEventListener('install', e => {

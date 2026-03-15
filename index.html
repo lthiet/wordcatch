@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Vocab Saver</title>
+    <title>WordCatch</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#ffffff">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -606,7 +606,7 @@
 <body>
 
 <div class="topbar">
-    <h1>Vocab Saver</h1>
+    <h1>WordCatch</h1>
     <span class="count" id="wordCount">0 words</span>
     <button class="icon-btn" id="wordsBtn">&#9776;</button>
 </div>
@@ -620,8 +620,8 @@
 <div class="content">
 
     <div class="landing" id="landing">
-        <h2>Read German.<br>Save what you don't know.</h2>
-        <p>Load an SRF article, tap unfamiliar words, and export your vocab list.</p>
+        <h2>Tap. Save. Learn.</h2>
+        <p>Load an article, tap words you don't know, and build your vocab list.</p>
         <div class="landing-actions">
             <button class="landing-btn" id="landingUrl">
                 <div class="label">Paste URL</div>
@@ -1216,8 +1216,8 @@ $('downloadCsvBtn').addEventListener('click', () => {
 $('emailCsvBtn').addEventListener('click', () => {
     const csv = generateCSV();
     if (!csv) { showToast('No words saved yet'); return; }
-    const subject = `Vocab Saver - ${savedWords.length} words (${new Date().toISOString().split('T')[0]})`;
-    const body = `Here are your saved German words:\n\n${csv}\n\n---\nSent from Vocab Saver`;
+    const subject = `WordCatch - ${savedWords.length} words (${new Date().toISOString().split('T')[0]})`;
+    const body = `Here are your saved German words:\n\n${csv}\n\n---\nSent from WordCatch`;
     window.location.href = `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 });
 
