@@ -710,6 +710,7 @@ let allArticleWords = JSON.parse(localStorage.getItem('vocabSaverArticles') || '
 let currentArticleKey = '';
 let savedWords = []; // current article's words
 let currentArticleImg = '';
+let articleTitles = JSON.parse(localStorage.getItem('vocabSaverTitles') || '{}');
 
 function articleKey(url, text) {
     // Use URL if available, otherwise hash of first 200 chars of text
@@ -805,7 +806,9 @@ async function fetchArticle() {
                 .filter(t => t.length > 20 && !junkPatterns.some(re => re.test(t)));
             if (paragraphs.length < 1) continue;
             const text = (title ? title + '\n\n' : '') + paragraphs.join('\n\n');
-            loadArticleWords(articleKey(url, text));
+            const key = articleKey(url, text);
+            loadArticleWords(key);
+            if (title) { articleTitles[key] = title; localStorage.setItem('vocabSaverTitles', JSON.stringify(articleTitles)); }
             renderArticle(text);
             showToast('Article loaded!');
             return;
@@ -1139,12 +1142,19 @@ function renderWordList() {
 
     // Show current article words first, then others
     const sections = [];
+    function articleLabel(key, isCurrent) {
+        if (key.startsWith('text_')) return isCurrent ? 'This article' : 'Pasted text';
+        if (articleTitles[key]) return (isCurrent ? '● ' : '') + articleTitles[key];
+        const slug = key.replace(/.*\//, '').replace(/[-_]/g, ' ').replace(/\.\w+$/, '');
+        const name = slug.length > 3 ? slug.charAt(0).toUpperCase() + slug.slice(1) : key.replace(/https?:\/\/(www\.)?/, '').slice(0, 50);
+        return (isCurrent ? '● ' : '') + name;
+    }
     if (currentArticleKey && savedWords.length > 0) {
-        sections.push({ key: currentArticleKey, words: savedWords, label: 'This article' });
+        sections.push({ key: currentArticleKey, words: savedWords, label: articleLabel(currentArticleKey, true) });
     }
     Object.entries(allArticleWords).forEach(([key, words]) => {
         if (key !== currentArticleKey && words.length > 0) {
-            sections.push({ key, words, label: key.startsWith('text_') ? 'Pasted text' : key.replace(/https?:\/\/(www\.)?/, '').slice(0, 40) });
+            sections.push({ key, words, label: articleLabel(key, false) });
         }
     });
 
