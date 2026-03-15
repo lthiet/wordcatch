@@ -743,75 +743,6 @@ function loadArticleWords(key) {
 function persistAll() {
     allArticleWords[currentArticleKey] = savedWords;
     localStorage.setItem('vocabSaverArticles', JSON.stringify(allArticleWords));
-    localStorage.setItem('vocabSaverTitles', JSON.stringify(articleTitles));
-    syncToFirestore();
-}
-
-// Debounced Firestore sync — batches rapid saves into one write
-let _syncTimer = null;
-function syncToFirestore() {
-    const user = firebase.auth().currentUser;
-    if (!user) return;
-    clearTimeout(_syncTimer);
-    _syncTimer = setTimeout(() => {
-        firebase.firestore().collection('users').doc(user.uid).set({
-            articleWords: allArticleWords,
-            articleTitles: articleTitles,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true }).catch(() => {});
-    }, 1000);
-}
-
-async function loadFromFirestore(user) {
-    try {
-        const doc = await firebase.firestore().collection('users').doc(user.uid).get();
-        if (!doc.exists) {
-            // First sign-in: push local data to Firestore
-            syncToFirestore();
-            return;
-        }
-        const data = doc.data();
-        const remoteWords = data.articleWords || {};
-        const remoteTitles = data.articleTitles || {};
-
-        // Merge: union of words per article, deduped by wids
-        for (const key of Object.keys(remoteWords)) {
-            const local = allArticleWords[key] || [];
-            const remote = remoteWords[key] || [];
-            // Collect all wid sets already present locally
-            const localWids = new Set(local.flatMap(w => w.wids || []));
-            // Add remote words whose wids aren't already in local
-            const toAdd = remote.filter(w =>
-                w.wids && w.wids.length > 0 && !w.wids.some(id => localWids.has(id))
-            );
-            allArticleWords[key] = [...local, ...toAdd];
-        }
-
-        // Merge titles
-        Object.assign(articleTitles, remoteTitles);
-
-        // Persist merged state locally
-        localStorage.setItem('vocabSaverArticles', JSON.stringify(allArticleWords));
-        localStorage.setItem('vocabSaverTitles', JSON.stringify(articleTitles));
-
-        // Reload current article words if viewing one
-        if (currentArticleKey) {
-            savedWords = allArticleWords[currentArticleKey] || [];
-            applyHighlights();
-            updateCounts();
-            renderWordList();
-        }
-
-        // Push merged state back to Firestore
-        syncToFirestore();
-
-        // Refresh feed badges to show updated word counts
-        if (feedCache[currentFeed]) renderFeed(feedCache[currentFeed].items);
-
-        showToast('Words synced');
-    } catch (err) {
-        console.error('Firestore load error:', err);
-    }
 }
 
 const $ = id => document.getElementById(id);
@@ -1312,7 +1243,6 @@ firebase.auth().onAuthStateChanged(user => {
         userAvatar.src = user.photoURL || '';
         userAvatar.style.display = user.photoURL ? 'block' : 'none';
         signOutBtn.style.display = 'block';
-        loadFromFirestore(user);
     } else {
         signInBtn.style.display = 'block';
         userAvatar.style.display = 'none';
