@@ -642,11 +642,12 @@
             </div>
             <div class="feed-tabs" id="feedTabs">
                 <button class="feed-tab active" data-feed="news">News</button>
+                <button class="feed-tab" data-feed="schweiz">Schweiz</button>
+                <button class="feed-tab" data-feed="international">International</button>
+                <button class="feed-tab" data-feed="wirtschaft">Wirtschaft</button>
                 <button class="feed-tab" data-feed="sport">Sport</button>
                 <button class="feed-tab" data-feed="kultur">Kultur</button>
-                <button class="feed-tab" data-feed="wirtschaft">Wirtschaft</button>
-                <button class="feed-tab" data-feed="meteo">Meteo</button>
-                <button class="feed-tab" data-feed="digital">Digital</button>
+                <button class="feed-tab" data-feed="wissen">Wissen</button>
             </div>
             <div class="feed-list" id="feedList">
                 <div class="feed-loading" id="feedLoading">Loading articles...</div>
@@ -713,10 +714,20 @@ firebase.initializeApp({
 });
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 
+// CORS proxy strategies: each returns { fetchUrl, extract(response) -> text }
 const CORS_PROXIES = [
-    url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    url => ({
+        fetchUrl: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+        extract: resp => resp.text(),
+    }),
+    url => ({
+        fetchUrl: `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+        extract: resp => resp.json().then(j => j.contents),
+    }),
+    url => ({
+        fetchUrl: `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`,
+        extract: null, // special: returns parsed JSON, not XML
+    }),
 ];
 
 // Per-article word storage: { [articleKey]: [{word, sentence, date, wids}] }
@@ -791,9 +802,11 @@ async function fetchArticle() {
 
     for (const proxyFn of CORS_PROXIES) {
         try {
-            const resp = await fetch(proxyFn(url));
+            const proxy = proxyFn(url);
+            if (proxy.extract === null) continue; // skip rss2json for article fetching
+            const resp = await fetch(proxy.fetchUrl);
             if (!resp.ok) continue;
-            const html = await resp.text();
+            const html = await proxy.extract(resp);
             const doc = new DOMParser().parseFromString(html, 'text/html');
             const title = doc.querySelector('h1')?.textContent?.trim() || '';
             const selectors = ['.article-content','.content-body','article .body','article','[data-testid="article-body"]','main','.content'];
@@ -1274,14 +1287,15 @@ function showToast(msg) {
     toast._t = setTimeout(() => toast.classList.remove('show'), 2200);
 }
 
-// RSS Feed
+// RSS Feed (URLs from https://www.srf.ch/really-simple-syndication-rss-feeds-von-srf)
 const SRF_FEEDS = {
-    news: 'https://www.srf.ch/news/bnf/rss/1890',
-    sport: 'https://www.srf.ch/news/bnf/rss/1892',
-    kultur: 'https://www.srf.ch/news/bnf/rss/1894',
-    wirtschaft: 'https://www.srf.ch/news/bnf/rss/1893',
-    meteo: 'https://www.srf.ch/news/bnf/rss/1891',
-    digital: 'https://www.srf.ch/news/bnf/rss/1895',
+    news: 'https://www.srf.ch/news/bnf/rss/19032223',
+    schweiz: 'https://www.srf.ch/news/bnf/rss/1890',
+    international: 'https://www.srf.ch/news/bnf/rss/1922',
+    wirtschaft: 'https://www.srf.ch/news/bnf/rss/1926',
+    sport: 'https://www.srf.ch/sport/bnf/rss/2562',
+    kultur: 'https://www.srf.ch/kultur/bnf/rss/8726',
+    wissen: 'https://www.srf.ch/bnf/rss/19919909',
 };
 
 let currentFeed = 'news';
@@ -1301,10 +1315,32 @@ async function loadFeed(category) {
 
     for (const proxyFn of CORS_PROXIES) {
         try {
-            const resp = await fetch(proxyFn(feedUrl));
-            if (!resp.ok) continue;
-            const xml = await resp.text();
+            const proxy = proxyFn(feedUrl);
+
+            // rss2json returns pre-parsed JSON
+            if (proxy.extract === null) {
+                const resp = await fetch(proxy.fetchUrl);
+                if (!resp.ok) { console.warn(`rss2json failed (${resp.status}) for ${feedUrl}`); continue; }
+                const json = await resp.json();
+                if (json.status !== 'ok' || !json.items?.length) { console.warn('rss2json: no items for', feedUrl); continue; }
+                const items = json.items.slice(0, 15).map(it => ({
+                    title: it.title || '',
+                    link: it.link || '',
+                    description: (it.description || '').replace(/<[^>]*>/g, '').trim(),
+                    pubDate: it.pubDate || '',
+                    img: it.enclosure?.link || it.thumbnail || '',
+                }));
+                feedCache[category] = { items, ts: Date.now() };
+                renderFeed(items);
+                return;
+            }
+
+            // XML-based proxies
+            const resp = await fetch(proxy.fetchUrl);
+            if (!resp.ok) { console.warn(`Feed proxy failed (${resp.status}) for ${feedUrl}`); continue; }
+            const xml = await proxy.extract(resp);
             const doc = new DOMParser().parseFromString(xml, 'text/xml');
+            if (doc.querySelector('parsererror')) { console.warn('XML parse error for', feedUrl); continue; }
             const items = Array.from(doc.querySelectorAll('item')).slice(0, 15).map(item => {
                 const desc = item.querySelector('description')?.textContent || '';
                 const imgMatch = desc.match(/src="([^"]+)"/);
@@ -1312,17 +1348,17 @@ async function loadFeed(category) {
                 if (img) img = img.replace('/320ws/', '/640ws/');
                 return {
                     title: item.querySelector('title')?.textContent || '',
-                    link: item.querySelector('link')?.textContent || '',
+                    link: item.querySelector('link')?.textContent?.trim() || '',
                     description: desc.replace(/<[^>]*>/g, '').trim(),
                     pubDate: item.querySelector('pubDate')?.textContent || '',
                     img,
                 };
             });
-            if (items.length === 0) continue;
+            if (items.length === 0) { console.warn('No items found in feed', feedUrl); continue; }
             feedCache[category] = { items, ts: Date.now() };
             renderFeed(items);
             return;
-        } catch (e) { continue; }
+        } catch (e) { console.warn('Feed fetch error:', e.message, feedUrl); continue; }
     }
     loading.textContent = 'Could not load feed. Try again later.';
 }
