@@ -689,7 +689,7 @@
         <div class="sheet-empty" id="sheetEmpty">Tap words in the article to save them here.</div>
     </div>
     <div class="sheet-footer">
-        <button class="btn btn-primary" id="emailCsvBtn">Email CSV</button>
+        <button class="btn btn-primary" id="sendToLangWizBtn">Send to lang-wiz</button>
         <button class="btn" id="downloadCsvBtn">Download CSV</button>
     </div>
 </div>
@@ -697,10 +697,20 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
-emailjs.init('n8uukZgAODGiDq4-Q');
-const EMAIL = 'nguyenthiet.lam@gmail.com';
+firebase.initializeApp({
+    apiKey: "AIzaSyCjFSCgqRqHIae23iy72-E7hJy9c-ktsls",
+    authDomain: "iron-log-3c398.firebaseapp.com",
+    projectId: "iron-log-3c398",
+    storageBucket: "iron-log-3c398.firebasestorage.app",
+    messagingSenderId: "457944842806",
+    appId: "1:457944842806:web:ed2d4c5f82667cd1820e97"
+});
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+
 const CORS_PROXIES = [
     url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
     url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
@@ -1199,18 +1209,28 @@ $('downloadCsvBtn').addEventListener('click', () => {
     a.click();
 });
 
-$('emailCsvBtn').addEventListener('click', async () => {
+$('sendToLangWizBtn').addEventListener('click', async () => {
     const words = savedWords;
     if (words.length === 0) { showToast('No words saved for this article'); return; }
-    const rows = words.map(w => `"${w.word.replace(/"/g,'""')}","${w.sentence.replace(/"/g,'""')}"`);
-    const csv = '\uFEFFWord/Phrase,Sentence\n' + rows.join('\n');
+
+    // Ensure signed in
+    let user = firebase.auth().currentUser;
+    if (!user) {
+        try { await firebase.auth().signInWithPopup(googleProvider); user = firebase.auth().currentUser; }
+        catch { showToast('Sign-in cancelled'); return; }
+    }
+
     showToast('Sending…');
     try {
-        await emailjs.send('service_h8194kr', 'template_5gul5ta', {
-            subject: 'WordCatch vocab',
-            body: csv,
+        await firebase.firestore().collection('wordPackages').add({
+            articleTitle: articleTitles[currentArticleKey] || 'Untitled',
+            words: words.map(w => w.word),
+            // sentences: words.map(w => w.sentence),  // future: uncomment to include examples
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            processed: false,
+            userId: user.uid
         });
-        showToast('Sent!');
+        showToast('Sent to lang-wiz!');
     } catch (err) {
         showToast('Failed to send');
     }

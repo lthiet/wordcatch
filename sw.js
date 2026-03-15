@@ -1,4 +1,4 @@
-const CACHE = 'wordcatch-v2';
+const CACHE = 'wordcatch-v3';
 const PRECACHE = ['/wordcatch/', '/wordcatch/index.html'];
 
 self.addEventListener('install', e => {
