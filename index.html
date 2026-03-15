@@ -774,13 +774,17 @@ async function loadFromFirestore(user) {
         const remoteWords = data.articleWords || {};
         const remoteTitles = data.articleTitles || {};
 
-        // Merge: for each article, take the version with more words
+        // Merge: union of words per article, deduped by wids
         for (const key of Object.keys(remoteWords)) {
             const local = allArticleWords[key] || [];
             const remote = remoteWords[key] || [];
-            if (remote.length > local.length) {
-                allArticleWords[key] = remote;
-            }
+            // Collect all wid sets already present locally
+            const localWids = new Set(local.flatMap(w => w.wids || []));
+            // Add remote words whose wids aren't already in local
+            const toAdd = remote.filter(w =>
+                w.wids && w.wids.length > 0 && !w.wids.some(id => localWids.has(id))
+            );
+            allArticleWords[key] = [...local, ...toAdd];
         }
 
         // Merge titles
