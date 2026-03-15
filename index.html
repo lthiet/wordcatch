@@ -1136,7 +1136,7 @@ function updateCounts() {
 }
 
 function renderWordList() {
-    sheetBody.querySelectorAll('.word-item').forEach(el => el.remove());
+    sheetBody.querySelectorAll('.word-item, .section-header').forEach(el => el.remove());
     const all = allWords();
     sheetEmpty.style.display = all.length === 0 ? 'block' : 'none';
 
@@ -1161,6 +1161,7 @@ function renderWordList() {
     sections.forEach(section => {
         if (sections.length > 1) {
             const header = document.createElement('div');
+            header.className = 'section-header';
             header.style.cssText = 'font-size:0.7rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.03em;padding:0.5rem 0.75rem 0.2rem;';
             header.textContent = section.label;
             sheetBody.appendChild(header);
