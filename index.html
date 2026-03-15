@@ -1054,7 +1054,7 @@ function setupTouch() {
         } else if (isHold && !isDrag) {
             clearSel();
             enterPhraseMode([startW]);
-        } else if (!isDrag) {
+        } else if (!isDrag && !moved) {
             handleTap(startW);
         }
         startW = null; curW = null; isDrag = false; moved = false; isHold = false;
