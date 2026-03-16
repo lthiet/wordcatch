@@ -1117,7 +1117,22 @@ function getSentence(el) {
     const p = el.closest('p');
     if (!p) return '';
     const text = p.textContent;
-    const ss = text.match(/[^.!?]+[.!?]+/g) || [text];
+    const abbrs = new Set(['St','Dr','Mr','Mrs','Ms','Prof','Nr','bzw','etc','vol','vs','ca','Inc','Ltd','Corp','Jr','Sr','Abs','Art','Bd','Bl','Bsp','Chr','Doz','Ew','Fa','Hg','Jg','Kap','Mio','Mrd','Mrd','Op','Rd','Str','Tel','Verf','Vgl','Zs']);
+    const parts = text.split(/([.!?]+)\s+/);
+    const chunks = [];
+    for (let i = 0; i < parts.length; i += 2) {
+        chunks.push(i + 1 < parts.length ? parts[i] + parts[i + 1] : parts[i]);
+    }
+    const ss = [];
+    for (const c of chunks) {
+        const prev = ss.length ? ss[ss.length - 1] : null;
+        const m = prev && prev.match(/(\w+)\.\s*$/);
+        if (m && abbrs.has(m[1])) {
+            ss[ss.length - 1] = prev + ' ' + c;
+        } else {
+            ss.push(c);
+        }
+    }
     const w = el.dataset.word;
     for (const s of ss) { if (s.includes(w)) return s.trim(); }
     return text.trim();
